@@ -3,7 +3,11 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-require('dotenv').config();
+
+// Only load dotenv in development
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -52,7 +56,18 @@ app.get('/api/health', (req, res) => {
 app.use(errorHandler);
 
 // Database connection
-mongoose.connect(process.env.MONGODB_URI, {
+// Support both MONGODB_URI and MONGO_URI for flexibility
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
+
+if (!MONGODB_URI) {
+  console.error('❌ FATAL ERROR: MONGODB_URI or MONGO_URI environment variable is not defined');
+  console.error('Available environment variables:', Object.keys(process.env).join(', '));
+  process.exit(1);
+}
+
+console.log('🔍 Attempting to connect to MongoDB...');
+
+mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
@@ -61,7 +76,7 @@ mongoose.connect(process.env.MONGODB_URI, {
   
   // Start server
   const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   });
@@ -70,7 +85,6 @@ mongoose.connect(process.env.MONGODB_URI, {
   console.error('❌ MongoDB connection error:', err);
   process.exit(1);
 });
-
 
 process.on('unhandledRejection', (err) => {
   console.error('❌ Unhandled Rejection:', err);
